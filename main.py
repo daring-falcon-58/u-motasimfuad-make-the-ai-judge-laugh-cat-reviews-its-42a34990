@@ -39,6 +39,7 @@ Standard library only. No network, no environment secrets, no input:
 the output is identical on every run.
 """
 
+import hashlib
 import os
 import sys
 
@@ -47,6 +48,11 @@ REVIEW = (
     "He screamed. Some people simply cannot accept love in its "
     "natural packaging."
 )
+
+# sha256 of the exact bytes main.py writes to /output/entry.txt.
+# The write-back self-check below recomputes it from the file on disk
+# and refuses to report success if a single byte differs.
+EXPECTED_SHA256 = "6026099aadd8330d9ecbb24d083c5c4b05a1ceb06f1bc119b3c88a186d60ab18"
 
 OUTPUT_PATH = "/output/entry.txt"
 MAX_CHARS = 200
@@ -75,6 +81,16 @@ def main() -> None:
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8", newline="") as f:
         f.write(REVIEW)
+    with open(OUTPUT_PATH, "rb") as f:
+        written = f.read()
+    digest = hashlib.sha256(written).hexdigest()
+    if digest != EXPECTED_SHA256:
+        print(
+            f"error: write-back self-check failed: entry.txt sha256 "
+            f"{digest} != expected {EXPECTED_SHA256}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     print(REVIEW)
 
 
